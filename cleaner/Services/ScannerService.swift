@@ -74,6 +74,32 @@ actor ScannerService {
             let modDate = attrs?[.modificationDate] as? Date
             let isDir = (attrs?[.type] as? FileAttributeType) == .typeDirectory
 
+            // Önbellek (Cache) dosyaları için boyut kısıtlaması (500 MB)
+            if categoryType == .caches {
+                let mb500: Int64 = 500 * 1024 * 1024
+                guard size > mb500 else { continue }
+            }
+
+            // Büyük Dosyalar (Large Files): 1 GB'dan büyük VE en az 1 yıldır açılmamış
+            if categoryType == .largeFiles {
+                let gb1: Int64 = 1 * 1024 * 1024 * 1024
+                
+                guard size > gb1 else { continue }
+                
+                if let mod = modDate {
+                    let oneYearAgo = Calendar.current.date(byAdding: .year, value: -1, to: Date())!
+                    guard mod < oneYearAgo else { continue }
+                }
+            }
+
+            // Eski İndirmeler (Old Downloads) için tarih kısıtlaması (3 Ay)
+            if categoryType == .oldDownloads {
+                if let mod = modDate {
+                    let threeMonthsAgo = Calendar.current.date(byAdding: .month, value: -3, to: Date())!
+                    guard mod < threeMonthsAgo else { continue }
+                }
+            }
+
             items.append(ScanItem(
                 path: childPath,
                 size: size,

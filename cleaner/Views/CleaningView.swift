@@ -95,38 +95,103 @@ struct CompletedView: View {
             if let result = vm.cleanupResult {
                 VStack(spacing: 8) {
                     Text(ByteFormatter.compact(from: result.freedBytes))
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
+                        .font(.system(size: 38, weight: .heavy, design: .rounded))
                         .foregroundColor(.green)
-                    Text("\(result.deletedCount) öğe temizlendi")
-                        .font(.system(size: 15))
-                        .foregroundColor(.secondary)
+                        .tracking(-0.5)
+                        
+                    Text("\(result.deletedCount) modül kancası ve dosya kalıntısı temizlendi")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.secondary.opacity(0.8))
                 }
+                .padding(.vertical, 10)
 
                 if !result.errors.isEmpty {
-                    HStack(spacing: 6) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.orange)
-                            .font(.system(size: 13))
-                        Text("\(result.errors.count) öğe silinemedi")
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                                .font(.system(size: 14))
+                                
+                            Text("\(result.errors.count) öğe güvenlik veya yetki sebebiyle silinemedi")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(.primary)
+                        }
+                        
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 8) {
+                                ForEach(result.errors.prefix(50)) { errorItem in
+                                    HStack(alignment: .top, spacing: 10) {
+                                        Rectangle()
+                                            .fill(Color.orange.opacity(0.4))
+                                            .frame(width: 2, height: 16)
+                                            .cornerRadius(1)
+                                            
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            Text(errorItem.path.replacingOccurrences(of: FileManager.default.homeDirectoryForCurrentUser.path, with: "~"))
+                                                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                                .foregroundColor(.primary.opacity(0.8))
+                                                .lineLimit(1)
+                                                .truncationMode(.head)
+                                                
+                                            Text(errorItem.reason)
+                                                .font(.system(size: 10))
+                                                .foregroundColor(.secondary)
+                                                .lineLimit(2)
+                                        }
+                                    }
+                                    .padding(.vertical, 2)
+                                }
+                                
+                                if result.errors.count > 50 {
+                                    Text("+ \(result.errors.count - 50) benzer hata daha alındı...")
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundColor(.orange)
+                                        .padding(.top, 4)
+                                        .padding(.leading, 12)
+                                }
+                            }
+                        }
+                        .frame(maxHeight: 140)
+                        .padding(12)
+                        .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                        .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .strokeBorder(Color.orange.opacity(0.3), lineWidth: 1)
+                        )
                     }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 4)
                 }
             }
 
             if let disk = vm.diskInfo {
                 DiskSummaryPill(diskInfo: disk)
+                    .padding(.top, 8)
             }
 
             Button {
-                withAnimation(.easeInOut(duration: 0.3)) {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
                     vm.reset()
                 }
             } label: {
-                Label("Tekrar Tara", systemImage: "arrow.clockwise")
-                    .frame(width: 160, height: 38)
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 15, weight: .bold))
+                    Text("Yeni Bir Tarama Başlat")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .background(
+                    LinearGradient(colors: [.accentColor.opacity(0.9), .purple.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                )
+                .foregroundColor(.white)
+                .cornerRadius(12)
+                .shadow(color: .accentColor.opacity(0.3), radius: 6, x: 0, y: 3)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.plain)
+            .padding(.top, 16)
 
             Spacer()
         }

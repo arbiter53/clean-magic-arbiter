@@ -18,41 +18,57 @@ struct StatCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(color.opacity(0.15))
-                        .frame(width: 34, height: 34)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [color.opacity(0.8), color],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 38, height: 38)
+                        .shadow(color: color.opacity(0.3), radius: 5, x: 0, y: 3)
+                        
                     Image(systemName: icon)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(color)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
                 }
                 Spacer()
             }
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(value)
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .font(.system(size: 26, weight: .heavy, design: .rounded))
                     .foregroundColor(.primary)
+                    .tracking(-0.5)
+                
                 Text(title)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(.secondary)
+                    .tracking(0.2)
+                
                 if let subtitle {
                     Text(verbatim: subtitle)
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundColor(.secondary.opacity(0.7))
                         .lineLimit(1)
                 }
             }
         }
-        .padding(14)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(nsColor: .controlBackgroundColor))
-                .shadow(color: .black.opacity(0.07), radius: 4, x: 0, y: 2)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(NSColor.controlBackgroundColor).opacity(0.8))
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(Color.secondary.opacity(0.15), lineWidth: 0.5)
+        )
+        .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 4)
     }
 }
 

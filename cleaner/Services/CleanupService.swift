@@ -53,13 +53,12 @@ actor CleanupService {
         var deletedCount = 0
         var freedBytes: Int64 = 0
         var errors: [CleanupError] = []
+        var requiresRootPaths: [ScanItem] = []
         let total = selectedItems.count
 
         for (index, item) in selectedItems.enumerated() {
-            // Check cancellation at each step
             guard !Task.isCancelled else { break }
 
-            // Report progress before attempting deletion
             progressHandler(CleanupProgress(
                 current: index,
                 total: total,
@@ -67,22 +66,53 @@ actor CleanupService {
                 bytesFreed: freedBytes
             ))
 
-            // Safety check
-            guard Safety.isSafeToDelete(item.path) else {
+            guard Safety.isSafeToDelete(item.path, categoryType: item.categoryType) else {
                 errors.append(CleanupError(
                     path: item.path,
-                    reason: "Protected path – deletion blocked by safety layer"
+                    reason: "Safety Layer tarafından korumalı bölge olarak işaretlendi."
                 ))
                 continue
             }
 
-            // Attempt deletion
             do {
                 try FileManager.default.removeItem(atPath: item.path)
                 deletedCount += 1
                 freedBytes += item.size
             } catch {
-                errors.append(CleanupError(path: item.path, reason: error.localizedDescription))
+                let nsError = error as NSError
+                // 513: NSFileWriteNoPermissionError
+                if nsError.domain == NSCocoaErrorDomain && nsError.code == 513 {
+                    requiresRootPaths.append(item)
+                } else {
+                    errors.append(CleanupError(path: item.path, reason: error.localizedDescription))
+                }
+            }
+        }
+
+        // Kök yetkisi (Root) gerektirenleri topluca AppleScript ile sil (Tek Sefer Şifre İsteyerek)
+        if !requiresRootPaths.isEmpty && !Task.isCancelled {
+            // Güvenli bash escaping (ör: 'dosya adı' -> '\'' ile korunur)
+            let safePaths = requiresRootPaths.map { "'" + $0.path.replacingOccurrences(of: "'", with: "'\\''") + "'" }.joined(separator: " ")
+            let appleScriptSource = "do shell script \"rm -rf \(safePaths)\" with administrator privileges"
+            
+            var errorDict: NSDictionary?
+            if let scriptObject = NSAppleScript(source: appleScriptSource) {
+                scriptObject.executeAndReturnError(&errorDict)
+                
+                if let _ = errorDict {
+                    // Kullanıcı şifre girmeyi reddetti veya işlem yine başarısız oldu
+                    for item in requiresRootPaths {
+                        errors.append(CleanupError(path: item.path, reason: "Yönetici yetkisi ile silme isteği reddedildi veya başarısız oldu."))
+                    }
+                } else {
+                    // Başarılı!
+                    deletedCount += requiresRootPaths.count
+                    freedBytes += requiresRootPaths.reduce(0) { $0 + $1.size }
+                }
+            } else {
+                 for item in requiresRootPaths {
+                     errors.append(CleanupError(path: item.path, reason: "Yetki istemcisi (AppleScript) başlatılamadı."))
+                 }
             }
         }
 
@@ -99,7 +129,7 @@ actor CleanupService {
 
     /// Delete a single item (used for individual item removal)
     func deleteItem(_ item: ScanItem) async throws {
-        guard Safety.isSafeToDelete(item.path) else {
+        guard Safety.isSafeToDelete(item.path, categoryType: item.categoryType) else {
             throw CleanerError.protectedPath(item.path)
         }
         try FileManager.default.removeItem(atPath: item.path)
